@@ -1,0 +1,148 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+
+namespace SecureDesktopApp
+{
+    class Program
+    {
+        private const string UserDataFile = "userdata.json";
+
+        static void Main(string[] args)
+        {
+            while (true)
+            {
+                Console.WriteLine("Welcome to Secure Desktop App");
+                Console.WriteLine("1. Register");
+                Console.WriteLine("2. Login");
+                Console.WriteLine("3. Exit");
+                Console.Write("Choose an option: ");
+                string choice = Console.ReadLine();
+
+                switch (choice)
+                {
+                    case "1":
+                        Register();
+                        break;
+                    case "2":
+                        Login();
+                        break;
+                    case "3":
+                        Console.WriteLine("Exiting...");
+                        return;
+                    default:
+                        Console.WriteLine("Invalid option. Please try again.");
+                        break;
+                }
+            }
+        }
+
+        static void Register()
+        {
+            Console.WriteLine("Register New User");
+            Console.Write("Enter username: ");
+            string username = Console.ReadLine();
+
+            // Validate username
+            if (!IsValidUsername(username))
+            {
+                Console.WriteLine("Invalid username. Username must be alphanumeric and between 3 to 20 characters.");
+                return;
+            }
+
+            Console.Write("Enter password: ");
+            string password = Console.ReadLine();
+
+            // Validate password
+            if (!IsValidPassword(password))
+            {
+                Console.WriteLine("Invalid password. Password must be at least 8 characters long and contain at least one special character.");
+                return;
+            }
+
+            // Hash the password
+            string hashedPassword = HashPassword(password);
+
+            // Save user data
+            SaveUserData(username, hashedPassword);
+
+            Console.WriteLine("Registration successful.");
+        }
+
+        static void Login()
+        {
+            Console.WriteLine("Login");
+            Console.Write("Enter username: ");
+            string username = Console.ReadLine();
+            Console.Write("Enter password: ");
+            string password = Console.ReadLine();
+
+            // Load user data
+            Dictionary<string, string> userData = LoadUserData();
+
+            // Validate login credentials
+            if (userData.ContainsKey(username) && VerifyPassword(password, userData[username]))
+            {
+                Console.WriteLine("Login successful. Welcome, " + username + "!");
+            }
+            else
+            {
+                Console.WriteLine("Invalid username or password.");
+            }
+        }
+
+        static bool IsValidUsername(string username)
+        {
+            return !string.IsNullOrEmpty(username) && username.Length >= 3 && username.Length <= 20 && System.Text.RegularExpressions.Regex.IsMatch(username, @"^[a-zA-Z0-9]+$");
+        }
+
+        static bool IsValidPassword(string password)
+        {
+            return !string.IsNullOrEmpty(password) && password.Length >= 8 && System.Text.RegularExpressions.Regex.IsMatch(password, @"^[a-zA-Z0-9!@#$%^&*]+$");
+        }
+
+        static string HashPassword(string password)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+                StringBuilder builder = new StringBuilder();
+                for (int i = 0; i < hashedBytes.Length; i++)
+                {
+                    builder.Append(hashedBytes[i].ToString("x2"));
+                }
+                return builder.ToString();
+            }
+        }
+
+        static bool VerifyPassword(string inputPassword, string hashedPassword)
+        {
+            return hashedPassword == HashPassword(inputPassword);
+        }
+
+        static void SaveUserData(string username, string hashedPassword)
+        {
+            Dictionary<string, string> userData = LoadUserData();
+            userData[username] = hashedPassword;
+            string json = JsonSerializer.Serialize(userData);
+            File.WriteAllText(UserDataFile, json);
+        }
+
+        static Dictionary<string, string> LoadUserData()
+        {
+            if (File.Exists(UserDataFile))
+            {
+                string json = File.ReadAllText(UserDataFile);
+                return JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+            }
+            else
+            {
+                return new Dictionary<string, string>();
+            }
+        }
+    }
+}
+
